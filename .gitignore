@@ -3,10 +3,6 @@
 .git
 *.pyc
 *.tfevents.*
-model.*
-*.index
-*.meta
-*.data*
 */__pycache__/*
 *.csv
 checkpoint
