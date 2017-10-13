@@ -6,14 +6,14 @@ import sys
 from console_logging.console import Console
 from sys import argv
 
-usage = "\nUsage:\npython neuralnet/main.py path/to/dataset.csv #MAX_GPA #MAX_TEST_SCORE\n\nExample:\tpython main.py harvard.csv 6.0 2400\n\nThe dataset should have one column of GPA and one column of applicable test scores, no headers."
+usage = "\nUsage:\npython neuralnet/main.py path/to/dataset.csv path/to/crossvalidation_dataset.csv #MAX_GPA #MAX_TEST_SCORE\n\nExample:\tpython main.py harvard.csv 6.0 2400\n\nThe dataset should have one column of GPA and one column of applicable test scores, no headers."
 
 console = Console()
 console.setVerbosity(3) # only logs success and error
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 try:
-    script, dataset_filename, maxgpa, maxtest = argv
+    script, dataset_filename, test_filename, maxgpa, maxtest = argv
 except:
     console.error(str(sys.exc_info()[0]))
     print(usage)
@@ -30,7 +30,7 @@ if dataset_filename[-4:] != ".csv":
 
 # Data sets
 DATA_TRAINING = dataset_filename
-DATA_TEST = dataset_filename
+DATA_TEST = test_filename
 ''' We are expecting features that are floats (gpa, sat, act) and outcomes that are integers (0 for reject, 1 for accept) '''
 ##
 
@@ -51,7 +51,7 @@ classifier = tf.contrib.learn.DNNClassifier(feature_columns=feature_columns,
                                             n_classes=3,
                                             model_dir="./train/model/"+dataset_filename[dataset_filename.rfind('/')+1:-4],
                                             config=tf.contrib.learn.RunConfig(
-                                                save_checkpoints_secs=60))
+                                                save_checkpoints_secs=10))
 ##
 
 # Helper functions
@@ -72,12 +72,14 @@ maxsteps = int(input('> '))
 # Create the classifier. Take maxsteps steps.
 classifier.fit(input_fn=get_train_inputs, steps=maxsteps)
 
-# Evaluate accuracy.
-accuracy_score = classifier.evaluate(input_fn=get_test_inputs, steps=1)["accuracy"]
-console.success('\nFinished with accuracy {0:f}'.format(accuracy_score))
+# Evaluate loss.
+results = classifier.evaluate(input_fn=get_test_inputs, steps=1)
+print(results)
+console.success('\nFinished with loss {0:f}'.format(results['loss']))
 
 print("\nPlease provide a GPA and test score to chance.")
 cur_gpa = float(input('GPA: '))
+print("Given "+str(cur_gpa))
 test_score = int(input('Test Score: '))
 def new_samples():
     return np.array([[0.0, 0], [cur_gpa,test_score], [maxgpa, maxtest]], dtype=np.float32)
@@ -91,5 +93,5 @@ def returnChance(chance):
         return "admission"
 
 console.log("Testing:\nGPA: 0\nTest Score: 0\nPrediction: %s\nExpected: rejection"%returnChance(predictions[0]))
-console.log("Testing:\nGPA: %d\nTest Score: %d\nPrediction: %s\nExpected: admission"%(maxgpa, maxtest, returnChance(predictions[2])))
+console.log("Testing:\nGPA: %0.1f\nTest Score: %d\nPrediction: %s\nExpected: admission"%(maxgpa, maxtest, returnChance(predictions[2])))
 console.success("Predicting:\nGPA: %d\nTest Score: %d\nPrediction:%s"%(cur_gpa, test_score, returnChance(predictions[1])))
